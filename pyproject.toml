@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "telegram-tools"
-version = "1.0.0"
-description = "Unified Telegram toolkit: copy, forward, extract, and preprocess Arabic corpora"
+version = "1.1.0"
+description = "Unified Telegram toolkit: copy, forward, extract, preprocess, and align bilingual medical corpora for ML training"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Abdulmalek Husseini" }]
 requires-python = ">=3.10"
-keywords = ["telegram", "telethon", "arabic", "corpus", "nlp", "ocr"]
+keywords = ["telegram", "telethon", "arabic", "corpus", "nlp", "ocr", "bilingual", "medical", "translation", "nllb", "huggingface"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -23,12 +23,14 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Communications :: Chat",
     "Topic :: Text Processing :: Linguistic",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
     "telethon>=1.36.0",
     "gradio>=5.0,<6.0",
     "cryptg>=0.4.0",
     "hachoir>=3.3.0",
+    "huggingface_hub>=0.20.0",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +42,14 @@ dev = [
     "flake8>=7.1.0",
     "bandit>=1.7.0",
     "pre-commit>=3.7.0",
+]
+ml = [
+    "torch>=2.2.0",
+    "transformers>=4.40.0",
+    "accelerate>=0.30.0",
+    "evaluate>=0.4.0",
+    "sacrebleu>=2.4.0",
+    "Pillow>=10.0.0",
 ]
 
 [project.scripts]

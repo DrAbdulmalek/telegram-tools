@@ -1,4 +1,20 @@
+# ── Core (required for all features) ─────────────────────────────
 telethon>=1.36.0
 gradio>=5.0,<6.0
 cryptg>=0.4.0
 hachoir>=3.3.0
+
+# ── Bilingual pipeline (extraction + splitting) ─────────────────
+# (uses only stdlib: re, json, random, pathlib — no extra deps)
+
+# ── HuggingFace Hub upload (optional — required by hf_uploader) ─
+huggingface_hub>=0.20.0
+
+# ── PyTorch training (optional — required by pytorch_dataset / ocr_dataset)
+# Uncomment the lines below when you are ready to train models.
+# torch>=2.2.0
+# transformers>=4.40.0
+# accelerate>=0.30.0
+# evaluate>=0.4.0
+# sacrebleu>=2.4.0
+# Pillow>=10.0.0

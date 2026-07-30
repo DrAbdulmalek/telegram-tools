@@ -7,6 +7,7 @@ from .base import (
     ChannelAccessError,
     FloodWaitRetryableError,
 )
+from .client_manager import TelegramClientManager
 from .rate_limiter import RateLimiter
 from .copier import TelegramCopier, CopierConfig, CopierResult
 from .forwarder import (
@@ -24,9 +25,11 @@ from .preprocess import (
     TextSegmenter,
     CorpusProcessor,
 )
+from .telegram_bridge import TelegramBridge
 
 __all__ = [
     "TelegramClientMixin",
+    "TelegramClientManager",
     "TelegramToolsError",
     "AuthenticationError",
     "ChannelAccessError",
@@ -47,4 +50,5 @@ __all__ = [
     "Deduplicator",
     "TextSegmenter",
     "CorpusProcessor",
+    "TelegramBridge",
 ]

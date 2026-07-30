@@ -1,0 +1,17 @@
+# Optional dependencies for ML training and HuggingFace Hub upload.
+# Install with:  pip install -r requirements-ml.txt
+
+# HuggingFace Hub upload (hf_uploader)
+huggingface_hub>=0.20.0
+
+# PyTorch training (translation + OCR)
+torch>=2.2.0
+transformers>=4.40.0
+accelerate>=0.30.0
+
+# Evaluation metrics
+evaluate>=0.4.0
+sacrebleu>=2.4.0
+
+# Image handling for OCR dataset
+Pillow>=10.0.0

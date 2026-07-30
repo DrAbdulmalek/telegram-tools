@@ -1,0 +1,66 @@
+name: Weekly Medical Data Sync
+
+on:
+  schedule:
+    # Every Sunday at 03:00 UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Telegram channel (@username or -100... id)'
+        required: true
+        default: '@dr_zaky_ortho'
+      limit:
+        description: 'Max messages to fetch (0 = all)'
+        required: false
+        default: '500'
+
+permissions:
+  contents: read
+
+jobs:
+  sync-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-ml.txt
+
+      - name: Run headless sync pipeline
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python -m automation.headless_sync \
+            --channel "${{ github.event.inputs.channel || '@dr_zaky_ortho' }}" \
+            --limit "${{ github.event.inputs.limit || '500' }}" \
+            --mode hybrid \
+            --format tsv \
+            --train-ratio 0.8 \
+            --val-ratio 0.1 \
+            --upload \
+            --repo-name medical-glossary-weekly \
+            --private
+
+      - name: Upload artifact (raw corpus)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-sync-output
+          path: ~/omni_telegram_output/
+          retention-days: 14
+          if-no-files-found: warn

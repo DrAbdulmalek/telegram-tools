@@ -49,6 +49,16 @@ copier_progress.json
 # Corpus outputs
 telegram_corpus/
 processed_corpus/
+omni_telegram_output/
+mock_test_output/
+ml_splits/
+ml_splits_jsonl/
+
+# Trained models
+medical_translation_model/
+medical_ocr_model/
+*.bin
+*.safetensors
 
 # Temp
 temp/
