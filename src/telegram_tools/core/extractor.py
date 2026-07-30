@@ -31,13 +31,11 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
-from telethon import TelegramClient, errors
+from telethon import errors
 from telethon.tl.types import (
     MessageMediaDocument,
     MessageMediaPhoto,
-    MessageMediaWebPage,
 )
 
 from .base import TelegramClientMixin
@@ -198,10 +196,10 @@ class TelegramExtractor(TelegramClientMixin):
         api_id: int,
         api_hash: str,
         session_name: str = "extractor",
-        session_string: Optional[str] = None,
+        session_string: str | None = None,
     ):
         super().__init__(api_id, api_hash, session_name, session_string)
-        self.saver: Optional[CorpusSaver] = None
+        self.saver: CorpusSaver | None = None
 
     async def extract(
         self,

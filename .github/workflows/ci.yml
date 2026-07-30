@@ -62,7 +62,7 @@ jobs:
       - name: Install bandit
         run: pip install bandit
       - name: Run bandit
-        run: bandit -r src/ -ll -x tests/
+        run: bandit -r src/ -ll -x tests/ -c .bandit
 
   docker:
     name: Docker build check

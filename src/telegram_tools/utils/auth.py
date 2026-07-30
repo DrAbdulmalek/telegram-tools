@@ -3,19 +3,17 @@
 from __future__ import annotations
 
 import os
-import sys
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class Credentials:
     api_id: int
     api_hash: str
-    phone: Optional[str] = None
+    phone: str | None = None
 
 
-def get_credentials_from_env() -> Optional[Credentials]:
+def get_credentials_from_env() -> Credentials | None:
     """Read credentials from environment variables. Returns None if missing."""
     api_id = os.environ.get("TG_API_ID", "").strip()
     api_hash = os.environ.get("TG_API_HASH", "").strip()

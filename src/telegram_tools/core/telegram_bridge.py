@@ -14,7 +14,6 @@ to persist the TSV.
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Tuple
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
@@ -38,8 +37,8 @@ class TelegramBridge:
 
     def __init__(
         self,
-        client: Optional[TelegramClient] = None,
-        extractor: Optional[BilingualExtractor] = None,
+        client: TelegramClient | None = None,
+        extractor: BilingualExtractor | None = None,
     ) -> None:
         self.client = client
         self.extractor = extractor or BilingualExtractor()
@@ -49,7 +48,7 @@ class TelegramBridge:
         self,
         api_id: int,
         api_hash: str,
-        session_string: Optional[str] = None,
+        session_string: str | None = None,
         loop=None,
     ) -> bool:
         """Create a Telethon client and connect. Returns ``is_authorized``."""
@@ -68,7 +67,7 @@ class TelegramBridge:
         self,
         api_id: int,
         api_hash: str,
-        session_string: Optional[str] = None,
+        session_string: str | None = None,
         loop=None,
     ) -> bool:
         """Async version of :meth:`connect`."""
@@ -84,7 +83,7 @@ class TelegramBridge:
         limit: int = 100,
         extraction_mode: str = "hybrid",
         min_text_length: int = 1,
-    ) -> Tuple[List[Tuple[str, str]], str]:
+    ) -> tuple[list[tuple[str, str]], str]:
         """
         Fetch up to ``limit`` messages from ``channel`` and extract pairs.
 
@@ -108,7 +107,7 @@ class TelegramBridge:
             raise RuntimeError("Not connected — call connect_async() first.")
 
         entity = await self.client.get_entity(channel)
-        raw_texts: List[str] = []
+        raw_texts: list[str] = []
         count = 0
 
         async for msg in self.client.iter_messages(entity, limit=limit or None):
@@ -132,6 +131,6 @@ class TelegramBridge:
         return pairs, combined_text
 
     # ── Convenience: extract from a single string ─────────────
-    def extract(self, raw_text: str, mode: str = "hybrid") -> List[Tuple[str, str]]:
+    def extract(self, raw_text: str, mode: str = "hybrid") -> list[tuple[str, str]]:
         """Run the extractor on an arbitrary string (no Telegram involved)."""
         return self.extractor.extract_pairs(raw_text, mode=mode)

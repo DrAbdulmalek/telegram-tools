@@ -17,20 +17,19 @@ import asyncio
 import json
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
-from telethon.tl.types import (
-    MessageMediaDocument,
-    MessageMediaPhoto,
-    MessageMediaWebPage,
-)
 from telethon.errors import (
     ChatWriteForbiddenError,
+    DocumentInvalidError,
     FloodWaitError,
     PhotoInvalidError,
-    DocumentInvalidError,
+)
+from telethon.tl.types import (
+    MessageMediaWebPage,
 )
 
 # FileReferenceError was renamed in Telethon 1.40+
@@ -60,8 +59,8 @@ class CopierConfig:
     copy_media: bool = True
     files_only: bool = False  # alias for copy_text=False
     reverse_order: bool = True  # oldest first
-    min_id: Optional[int] = None  # resume support
-    max_id: Optional[int] = None
+    min_id: int | None = None  # resume support
+    max_id: int | None = None
 
 
 @dataclass
@@ -109,8 +108,8 @@ class TelegramCopier(TelegramClientMixin):
         api_id: int,
         api_hash: str,
         session_name: str = "copier",
-        session_string: Optional[str] = None,
-        progress_file: Optional[Path] = None,
+        session_string: str | None = None,
+        progress_file: Path | None = None,
     ):
         super().__init__(api_id, api_hash, session_name, session_string)
         self.progress_file = progress_file or Path("copier_progress.json")
@@ -140,7 +139,7 @@ class TelegramCopier(TelegramClientMixin):
     async def copy(
         self,
         config: CopierConfig,
-        progress_callback: Optional[Callable[[CopierResult, int], Any]] = None,
+        progress_callback: Callable[[CopierResult, int], Any] | None = None,
     ) -> CopierResult:
         """
         Run the copy operation.
@@ -247,8 +246,8 @@ class TelegramCopier(TelegramClientMixin):
 
                 await asyncio.sleep(rate.get_delay())
 
-        except ChatWriteForbiddenError:
-            raise RuntimeError("No write permission in destination channel")
+        except ChatWriteForbiddenError as e:
+            raise RuntimeError("No write permission in destination channel") from e
         except FloodWaitError as e:
             logger.warning(f"FloodWait {e.seconds}s — saving progress and pausing")
             self.save_progress({

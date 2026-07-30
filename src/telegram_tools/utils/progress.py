@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Optional
 
 
 class ProgressManager:
@@ -69,7 +68,7 @@ class Stats:
         self.text_copied = 0
         self.media_copied = 0
         self.errors: list[dict] = []
-        self.start_time: Optional[float] = None
+        self.start_time: float | None = None
 
     def add_error(self, msg_id: int, error: Exception | str) -> None:
         self.errors.append({"msg_id": msg_id, "error": str(error)})

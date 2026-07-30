@@ -28,7 +28,6 @@ import string
 from collections import Counter
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +149,7 @@ class QualityFilter:
         most_common_ratio = char_counts.most_common(1)[0][1] / len(text)
         return most_common_ratio
 
-    def is_quality(self, text: str) -> Tuple[bool, dict]:
+    def is_quality(self, text: str) -> tuple[bool, dict]:
         clean = self.normalizer.normalize(text)
         words = clean.split()
         metrics = {
@@ -209,7 +208,7 @@ class TextSegmenter:
 
     SENTENCE_ENDERS = re.compile(r"[.؟!\n]\s*")
 
-    def segment(self, text: str, min_segment_len: int = 15) -> List[str]:
+    def segment(self, text: str, min_segment_len: int = 15) -> list[str]:
         segments: list[str] = []
         for part in self.SENTENCE_ENDERS.split(text):
             part = part.strip()
@@ -302,10 +301,10 @@ class CorpusProcessor:
         logger.info(f"  Filtered: {self.stats['filtered_out']}")
         return self.stats
 
-    def _read_input(self, filepath: Path) -> List[str]:
+    def _read_input(self, filepath: Path) -> list[str]:
         texts: list[str] = []
         if filepath.suffix == ".jsonl":
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, encoding="utf-8") as f:
                 for line in f:
                     try:
                         entry = json.loads(line)
@@ -315,7 +314,7 @@ class CorpusProcessor:
                     except json.JSONDecodeError:
                         pass
         else:
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, encoding="utf-8") as f:
                 content = f.read()
             texts = [t.strip() for t in content.split("\n\n") if t.strip()]
         return texts

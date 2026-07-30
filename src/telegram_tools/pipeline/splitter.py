@@ -18,7 +18,6 @@ import json
 import logging
 import random
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +31,10 @@ class DatasetSplitter:
 
     def split_data(
         self,
-        pairs: List[Tuple[str, str]],
+        pairs: list[tuple[str, str]],
         train_ratio: float,
         val_ratio: float,
-    ) -> Dict[str, List[Tuple[str, str]]]:
+    ) -> dict[str, list[tuple[str, str]]]:
         """
         Shuffle ``pairs`` deterministically and split into train/val/test.
 
@@ -75,10 +74,10 @@ class DatasetSplitter:
 
     def save_splits(
         self,
-        splits: Dict[str, List[Tuple[str, str]]],
+        splits: dict[str, list[tuple[str, str]]],
         output_dir: str | Path,
         file_format: str = "tsv",
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Persist ``splits`` to ``output_dir``.
 
@@ -98,7 +97,7 @@ class DatasetSplitter:
         out_path = Path(output_dir)
         out_path.mkdir(parents=True, exist_ok=True)
 
-        saved_files: Dict[str, str] = {}
+        saved_files: dict[str, str] = {}
 
         for split_name, data in splits.items():
             if file_format == "tsv":
@@ -125,7 +124,7 @@ class DatasetSplitter:
 
         return saved_files
 
-    def summary(self, splits: Dict[str, List[Tuple[str, str]]]) -> str:
+    def summary(self, splits: dict[str, list[tuple[str, str]]]) -> str:
         """Human-readable summary of a splits dict."""
         total = sum(len(v) for v in splits.values())
         lines = [f"Total pairs: {total} (shuffled with seed={self.seed})"]

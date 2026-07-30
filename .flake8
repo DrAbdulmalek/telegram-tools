@@ -13,7 +13,8 @@ exclude =
 ignore =
     E501,
     W503,
-    E741
+    E741,
+    E203
 per-file-ignores =
     test_*.py: B101
     *_test.py: B101

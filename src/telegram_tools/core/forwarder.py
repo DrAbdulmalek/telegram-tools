@@ -20,11 +20,13 @@ import logging
 import shutil
 import tempfile
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 from telethon.errors import (
+    ApiIdInvalidError,
     ChannelPrivateError,
     ChatWriteForbiddenError,
     FloodWaitError,
@@ -34,7 +36,6 @@ from telethon.errors import (
     SessionPasswordNeededError,
     SlowModeWaitError,
     UserBannedInChannelError,
-    ApiIdInvalidError,
 )
 from telethon.tl.types import (
     Message,
@@ -95,13 +96,13 @@ class ForwardConfig:
     media_only: bool = False
     text_only: bool = False
     skip_forwards: bool = True
-    filter_text: Optional[str] = None
-    start_id: Optional[int] = None
-    end_id: Optional[int] = None
+    filter_text: str | None = None
+    start_id: int | None = None
+    end_id: int | None = None
     max_retries: int = 3
     send_caption: bool = True
     reverse_order: bool = False
-    selected_ids: Optional[list[int]] = None
+    selected_ids: list[int] | None = None
 
     def __post_init__(self):
         if self.limit < 0:
@@ -150,14 +151,14 @@ class TelegramForwarder(TelegramClientMixin):
         api_id: int,
         api_hash: str,
         session_name: str = "forwarder",
-        session_string: Optional[str] = None,
+        session_string: str | None = None,
     ):
         super().__init__(api_id, api_hash, session_name, session_string)
         self._cancelled = False
-        self._progress_callback: Optional[Callable] = None
+        self._progress_callback: Callable | None = None
         # Login state
-        self._phone: Optional[str] = None
-        self._phone_code_hash: Optional[str] = None
+        self._phone: str | None = None
+        self._phone_code_hash: str | None = None
 
     # ── Authentication ──────────────────────────────────────
 
@@ -180,7 +181,7 @@ class TelegramForwarder(TelegramClientMixin):
             raise AuthenticationError(f"Failed to send code: {e}") from e
 
     async def verify_code(
-        self, code: str, password: Optional[str] = None
+        self, code: str, password: str | None = None
     ) -> bool:
         """Verify the login code (and 2FA password if required)."""
         if not self.client:
@@ -201,7 +202,7 @@ class TelegramForwarder(TelegramClientMixin):
                 await self.client.sign_in(password=password.strip())
                 logger.info("Signed in with 2FA")
                 return True
-            raise AuthenticationError("2FA_PASSWORD_REQUIRED")
+            raise AuthenticationError("2FA_PASSWORD_REQUIRED") from None
         except PhoneCodeInvalidError as e:
             raise AuthenticationError("Invalid verification code") from e
         except PhoneCodeExpiredError as e:
@@ -369,7 +370,7 @@ class TelegramForwarder(TelegramClientMixin):
     async def forward_content(
         self,
         config: ForwardConfig,
-        progress_callback: Optional[Callable] = None,
+        progress_callback: Callable | None = None,
     ) -> ForwardResult:
         """Run the forward operation."""
         if not self.client:
@@ -454,8 +455,8 @@ class TelegramForwarder(TelegramClientMixin):
 
                 await asyncio.sleep(rate.get_delay())
 
-        except ChatWriteForbiddenError:
-            raise RuntimeError("No write permission in destination channel")
+        except ChatWriteForbiddenError as e:
+            raise RuntimeError("No write permission in destination channel") from e
         except Exception as e:
             result.errors.append(f"fatal: {e}")
             logger.error(f"Forward failed: {e}", exc_info=True)
@@ -565,7 +566,7 @@ class TelegramForwarder(TelegramClientMixin):
 def create_forwarder(
     api_id: int,
     api_hash: str,
-    session_string: Optional[str] = None,
+    session_string: str | None = None,
 ) -> TelegramForwarder:
     """Factory — convenience function."""
     return TelegramForwarder(api_id, api_hash, session_string=session_string)

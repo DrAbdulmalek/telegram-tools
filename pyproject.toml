@@ -81,4 +81,7 @@ addopts = "-v --tb=short"
 
 [tool.bandit]
 exclude_dirs = ["tests"]
-skips = ["B101"]  # assert statements in tests
+skips = [
+    "B101",  # assert statements in tests
+    "B615",  # from_pretrained() without revision pinning — intentional, model name is user-controlled
+]

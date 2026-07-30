@@ -27,7 +27,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
-from typing import Any, Optional
+from typing import Any
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
@@ -62,8 +62,8 @@ class FloodWaitRetryableError(TelegramToolsError):
 # A single background thread runs one asyncio loop forever. Every
 # Telethon client created by any module runs on this same loop.
 
-_loop: Optional[asyncio.AbstractEventLoop] = None
-_loop_thread: Optional[threading.Thread] = None
+_loop: asyncio.AbstractEventLoop | None = None
+_loop_thread: threading.Thread | None = None
 _loop_lock = threading.Lock()
 
 
@@ -118,7 +118,7 @@ class TelegramClientMixin:
         api_id: int,
         api_hash: str,
         session_name: str = "telegram_tools",
-        session_string: Optional[str] = None,
+        session_string: str | None = None,
     ):
         if not api_id or not api_hash:
             raise ValueError("api_id and api_hash are required")
@@ -128,7 +128,7 @@ class TelegramClientMixin:
         self.session_name = session_name
         self.session_string = session_string
 
-        self.client: Optional[TelegramClient] = None
+        self.client: TelegramClient | None = None
         self._loop = _get_shared_loop()
         # {id: entity} cache built from iter_dialogs — required so that
         # numeric channel IDs can be resolved with a valid access_hash.

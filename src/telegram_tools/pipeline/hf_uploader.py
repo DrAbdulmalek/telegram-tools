@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ except ImportError:  # pragma: no cover
     login = None  # type: ignore
 
 
-_DEFAULT_FILE_EXTS: Tuple[str, ...] = ("tsv", "jsonl", "txt")
+_DEFAULT_FILE_EXTS: tuple[str, ...] = ("tsv", "jsonl", "txt")
 
 
 class HuggingFaceUploader:
@@ -59,7 +58,7 @@ class HuggingFaceUploader:
         folder_path: str | Path,
         repo_name: str,
         private: bool = True,
-        file_types: Tuple[str, ...] = _DEFAULT_FILE_EXTS,
+        file_types: tuple[str, ...] = _DEFAULT_FILE_EXTS,
     ) -> str:
         """
         Upload every matching file under ``folder_path`` to a new or

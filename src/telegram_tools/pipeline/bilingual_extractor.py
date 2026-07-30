@@ -29,7 +29,6 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +39,7 @@ _LATIN_RANGE = re.compile(r"[A-Za-z][A-Za-z\s\-\.]+")
 
 # Same-line patterns. Named groups make the matching order-independent:
 # we accept ``en - ar`` and ``ar - en`` alike.
-_SAME_LINE_PATTERNS: Tuple[re.Pattern, ...] = (
+_SAME_LINE_PATTERNS: tuple[re.Pattern, ...] = (
     # English - Arabic   |   English : Arabic   |   English | Arabic
     re.compile(
         r"(?P<en>[A-Za-z][A-Za-z\s\-\.]+?)\s*[-|:]\s*"
@@ -113,7 +112,7 @@ class BilingualExtractor:
     # ── Main extraction ───────────────────────────────────────
     def extract_pairs(
         self, raw_text: str, mode: str = "hybrid"
-    ) -> List[Tuple[str, str]]:
+    ) -> list[tuple[str, str]]:
         """
         Extract unique (English, Arabic) pairs from ``raw_text``.
 
@@ -134,7 +133,7 @@ class BilingualExtractor:
                 f"Invalid mode '{mode}'. Must be one of {VALID_MODES}"
             )
 
-        pairs: Set[Tuple[str, str]] = set()
+        pairs: set[tuple[str, str]] = set()
 
         # Split into paragraphs (blocks separated by blank lines).
         blocks = re.split(r"\n\s*\n", raw_text)
@@ -207,8 +206,8 @@ class BilingualExtractor:
 
         # Final dedup, preserving first-seen order. Lowercase the English key
         # only for dedup comparison — the stored English text is unchanged.
-        valid_pairs: List[Tuple[str, str]] = []
-        seen: Set[Tuple[str, str]] = set()
+        valid_pairs: list[tuple[str, str]] = []
+        seen: set[tuple[str, str]] = set()
         for en, ar in pairs:
             en_clean = en.strip().rstrip(".,-;:")
             ar_clean = ar.strip().rstrip(".,-;:،؛")
@@ -222,7 +221,7 @@ class BilingualExtractor:
 
     # ── TSV writer (strict English\tArabic) ───────────────────
     def save_to_tsv(
-        self, pairs: List[Tuple[str, str]], output_path: str | Path
+        self, pairs: list[tuple[str, str]], output_path: str | Path
     ) -> int:
         """
         Save pairs as a strict ``English\\tArabic`` TSV file.
@@ -240,7 +239,7 @@ class BilingualExtractor:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Dedup while preserving order.
-        unique_pairs: List[Tuple[str, str]] = list(dict.fromkeys(pairs))
+        unique_pairs: list[tuple[str, str]] = list(dict.fromkeys(pairs))
 
         with open(output_path, "w", encoding="utf-8", newline="\n") as fh:
             fh.write("English\tArabic\n")
@@ -265,11 +264,11 @@ class BilingualExtractor:
 
     # ── TSV reader (mirror of save_to_tsv) ────────────────────
     @staticmethod
-    def load_from_tsv(tsv_path: str | Path) -> List[Tuple[str, str]]:
+    def load_from_tsv(tsv_path: str | Path) -> list[tuple[str, str]]:
         """Read a TSV file produced by ``save_to_tsv`` back into pairs."""
         tsv_path = Path(tsv_path)
-        pairs: List[Tuple[str, str]] = []
-        with open(tsv_path, "r", encoding="utf-8") as fh:
+        pairs: list[tuple[str, str]] = []
+        with open(tsv_path, encoding="utf-8") as fh:
             header = fh.readline()
             if not header.strip().startswith("English"):
                 # No header — rewind and treat the first line as data.
@@ -281,7 +280,7 @@ class BilingualExtractor:
         return pairs
 
     # ── Statistics ────────────────────────────────────────────
-    def stats(self, pairs: List[Tuple[str, str]]) -> Dict[str, int]:
+    def stats(self, pairs: list[tuple[str, str]]) -> dict[str, int]:
         """Return basic stats about an extracted pairs list."""
         total_chars_en = sum(len(en) for en, _ in pairs)
         total_chars_ar = sum(len(ar) for _, ar in pairs)

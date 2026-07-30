@@ -18,9 +18,9 @@ Modules
 """
 
 from .bilingual_extractor import BilingualExtractor
-from .splitter import DatasetSplitter
-from .pytorch_dataset import MedicalBilingualDataset
 from .hf_uploader import HuggingFaceUploader
+from .pytorch_dataset import MedicalBilingualDataset
+from .splitter import DatasetSplitter
 
 __all__ = [
     "BilingualExtractor",

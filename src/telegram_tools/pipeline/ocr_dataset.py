@@ -25,15 +25,14 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
 try:
     import torch
+    from PIL import Image
     from torch.utils.data import Dataset
     from transformers import AutoProcessor
-    from PIL import Image
     _TORCH_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _TORCH_AVAILABLE = False
@@ -85,7 +84,7 @@ class MedicalOCRDataset(Dataset):
             raise FileNotFoundError(f"Metadata file not found: {self.metadata_file}")
 
         self.processor = AutoProcessor.from_pretrained(processor_name)
-        self.samples: List[Dict[str, object]] = self._load_metadata()
+        self.samples: list[dict[str, object]] = self._load_metadata()
 
         logger.info(
             "Loaded %d OCR samples from %s (processor=%s)",
@@ -94,10 +93,10 @@ class MedicalOCRDataset(Dataset):
             processor_name,
         )
 
-    def _load_metadata(self) -> List[Dict[str, object]]:
+    def _load_metadata(self) -> list[dict[str, object]]:
         """Read metadata.jsonl and pair each image with its caption."""
-        samples: List[Dict[str, object]] = []
-        with open(self.metadata_file, "r", encoding="utf-8") as fh:
+        samples: list[dict[str, object]] = []
+        with open(self.metadata_file, encoding="utf-8") as fh:
             for line in fh:
                 line = line.strip()
                 if not line:
@@ -137,7 +136,7 @@ class MedicalOCRDataset(Dataset):
     def __len__(self) -> int:
         return len(self.samples)
 
-    def __getitem__(self, idx: int) -> Dict[str, object]:
+    def __getitem__(self, idx: int) -> dict[str, object]:
         sample = self.samples[idx]
         image = Image.open(sample["image_path"]).convert("RGB")
 

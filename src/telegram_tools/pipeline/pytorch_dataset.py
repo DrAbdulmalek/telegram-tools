@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +96,7 @@ class MedicalBilingualDataset(Dataset):
                     tokenizer_name,
                 )
 
-        self.pairs: List[Tuple[str, str]] = self._load_tsv(self.tsv_path)
+        self.pairs: list[tuple[str, str]] = self._load_tsv(self.tsv_path)
         logger.info(
             "Loaded %d pairs from %s (tokenizer=%s, max_length=%d)",
             len(self.pairs),
@@ -107,9 +106,9 @@ class MedicalBilingualDataset(Dataset):
         )
 
     @staticmethod
-    def _load_tsv(path: Path) -> List[Tuple[str, str]]:
-        pairs: List[Tuple[str, str]] = []
-        with open(path, "r", encoding="utf-8") as fh:
+    def _load_tsv(path: Path) -> list[tuple[str, str]]:
+        pairs: list[tuple[str, str]] = []
+        with open(path, encoding="utf-8") as fh:
             header = fh.readline()
             if not header.strip().startswith("English"):
                 fh.seek(0)
@@ -122,7 +121,7 @@ class MedicalBilingualDataset(Dataset):
     def __len__(self) -> int:
         return len(self.pairs)
 
-    def __getitem__(self, idx: int) -> Dict[str, object]:
+    def __getitem__(self, idx: int) -> dict[str, object]:
         en_text, ar_text = self.pairs[idx]
 
         source_encoding = self.tokenizer(
@@ -159,7 +158,7 @@ class MedicalBilingualDataset(Dataset):
         if n_samples <= 0:
             return ""
 
-        lines: List[str] = []
+        lines: list[str] = []
         for i in range(min(n_samples, len(self.pairs))):
             item = self[i]
             input_ids = item["input_ids"]

@@ -27,7 +27,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
-from typing import Optional
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
@@ -38,11 +37,11 @@ logger = logging.getLogger(__name__)
 class TelegramClientManager:
     """Singleton owning a persistent asyncio loop and a single Telethon client."""
 
-    _instance: Optional["TelegramClientManager"] = None
-    _loop: Optional[asyncio.AbstractEventLoop] = None
-    _loop_thread: Optional[threading.Thread] = None
+    _instance: TelegramClientManager | None = None
+    _loop: asyncio.AbstractEventLoop | None = None
+    _loop_thread: threading.Thread | None = None
 
-    def __new__(cls) -> "TelegramClientManager":
+    def __new__(cls) -> TelegramClientManager:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._init_loop()
@@ -69,7 +68,7 @@ class TelegramClientManager:
             daemon=True,
         )
         self._loop_thread.start()
-        self.client: Optional[TelegramClient] = None
+        self.client: TelegramClient | None = None
         logger.debug("Persistent event loop started on background thread")
 
     def _run(self, coro, timeout: float = 120.0):
@@ -84,7 +83,7 @@ class TelegramClientManager:
         self,
         api_id: int,
         api_hash: str,
-        session_string: Optional[str] = None,
+        session_string: str | None = None,
     ) -> TelegramClient:
         """
         Create (or replace) the shared Telethon client.

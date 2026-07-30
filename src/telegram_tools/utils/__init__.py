@@ -1,6 +1,6 @@
 """Utility helpers for telegram_tools."""
 
-from .auth import prompt_credentials, get_credentials_from_env
+from .auth import get_credentials_from_env, prompt_credentials
 from .media import describe_media, format_size
 from .progress import ProgressManager, Stats
 

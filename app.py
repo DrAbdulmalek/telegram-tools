@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Telegram Tools — Unified Gradio Web UI (5 tabs)
 
@@ -19,20 +18,19 @@ bound to that loop (Telethon requirement).
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import threading
-import logging
-from typing import Optional
 
 import gradio as gr
 
 from telegram_tools.core.copier import CopierConfig, TelegramCopier
+from telegram_tools.core.extractor import TelegramExtractor
 from telegram_tools.core.forwarder import (
     ForwardConfig,
-    TelegramForwarder,
     ForwardResult,
+    TelegramForwarder,
 )
-from telegram_tools.core.extractor import TelegramExtractor
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,10 +61,10 @@ def _run(coro, timeout: float = 120.0):
 
 # We keep one of each tool alive — they share the same client once
 # authenticated (same api_id/api_hash/session_string).
-_forwarder: Optional[TelegramForwarder] = None
-_copier: Optional[TelegramCopier] = None
-_extractor: Optional[TelegramExtractor] = None
-_last_creds: tuple[int, str, Optional[str]] = (0, "", None)  # api_id, api_hash, session_string
+_forwarder: TelegramForwarder | None = None
+_copier: TelegramCopier | None = None
+_extractor: TelegramExtractor | None = None
+_last_creds: tuple[int, str, str | None] = (0, "", None)  # api_id, api_hash, session_string
 
 
 def _get_or_create_tools(api_id, api_hash, session_string):
@@ -317,7 +315,7 @@ def do_copy(
     yield _status_html("⏳ جارٍ النسخ…", "info"), 0, "{}"
 
     import queue as _q
-    pq: "_q.Queue" = _q.Queue()
+    pq: _q.Queue = _q.Queue()
 
     def cb_sync(result, pct):
         pq.put((result, pct))
@@ -414,7 +412,7 @@ def do_forward(
     yield _status_html("⏳ جارٍ النقل…", "info"), 0, "{}"
 
     import queue as _q
-    pq: "_q.Queue" = _q.Queue()
+    pq: _q.Queue = _q.Queue()
 
     async def cb(result: ForwardResult, pct: int):
         pq.put((result, pct))
@@ -480,7 +478,7 @@ def do_extract(channel, channel_manual, output_dir, texts_only, no_media, limit,
     yield _status_html("⏳ جارٍ الاستخراج…", "info"), "{}"
 
     import queue as _q
-    pq: "_q.Queue" = _q.Queue()
+    pq: _q.Queue = _q.Queue()
 
     async def run():
         try:
