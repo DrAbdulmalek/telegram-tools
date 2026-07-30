@@ -53,3 +53,13 @@ processed_corpus/
 # Temp
 temp/
 *.tmp
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Ruff / mypy
+.ruff_cache/
+.mypy_cache/
