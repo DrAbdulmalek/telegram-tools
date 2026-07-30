@@ -1,0 +1,21 @@
+services:
+  telegram-tools:
+    build: .
+    container_name: telegram-tools
+    ports:
+      - "7860:7860"
+    environment:
+      - PORT=7860
+      - TG_API_ID=${TG_API_ID:-}
+      - TG_API_HASH=${TG_API_HASH:-}
+      - TG_PHONE=${TG_PHONE:-}
+      - SESSION_STRING=${SESSION_STRING:-}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

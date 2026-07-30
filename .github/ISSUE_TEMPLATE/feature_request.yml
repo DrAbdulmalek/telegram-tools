@@ -1,0 +1,43 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: tool
+    attributes:
+      label: Which tool should this feature affect?
+      options:
+        - copy (fast bulk copy)
+        - forward (Download-Upload bypass)
+        - extract (corpus builder)
+        - process (Arabic preprocessor)
+        - login / authentication
+        - Gradio web UI
+        - CLI (tg-tools)
+        - project-wide
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: A clear description of the feature you'd like.
+      placeholder: Describe the feature...
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this feature needed? What problem does it solve?
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your proposed approach.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions you've considered.

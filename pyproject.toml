@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "telegram-tools"
+version = "1.0.0"
+description = "Unified Telegram toolkit: copy, forward, extract, and preprocess Arabic corpora"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Abdulmalek Husseini" }]
+requires-python = ">=3.10"
+keywords = ["telegram", "telethon", "arabic", "corpus", "nlp", "ocr"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Chat",
+    "Topic :: Text Processing :: Linguistic",
+]
+dependencies = [
+    "telethon>=1.36.0",
+    "gradio>=5.0,<6.0",
+    "cryptg>=0.4.0",
+    "hachoir>=3.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.6.0",
+    "flake8>=7.1.0",
+    "bandit>=1.7.0",
+    "pre-commit>=3.7.0",
+]
+
+[project.scripts]
+tg-tools = "telegram_tools.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/DrAbdulmalek/telegram-tools"
+Repository = "https://github.com/DrAbdulmalek/telegram-tools"
+Issues = "https://github.com/DrAbdulmalek/telegram-tools/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]  # assert statements in tests
