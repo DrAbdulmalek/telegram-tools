@@ -1,0 +1,54 @@
+# ───────────────────────────────────────────────────────────────
+# Telegram Tools — Default configuration
+# All values can be overridden by environment variables or CLI flags.
+# Loaded by `automation/headless_sync.py` and `ui/app.py`.
+# ───────────────────────────────────────────────────────────────
+
+telegram:
+  # API credentials — preferred via env vars (TG_API_ID, TG_API_HASH)
+  api_id: null
+  api_hash: null
+  session_string: null        # if set, skip interactive login
+  phone: null
+
+extraction:
+  # BilingualExtractor mode: hybrid | structured | sequential | contextual
+  mode: hybrid
+  # Minimum / maximum length of a kept pair (in characters)
+  min_pair_len: 2
+  max_pair_len: 1024
+  # Drop pairs where one side is identical to the other (e.g. "OK\tOK")
+  drop_identical: true
+  # Drop pairs where Arabic side contains only digits / punctuation
+  drop_arabic_empty: true
+
+splitting:
+  # Ratios must sum to 1.0
+  train_ratio: 0.8
+  val_ratio:   0.1
+  test_ratio:  0.1
+  # Deterministic shuffle — breaks alphabetical bias in dictionary corpora
+  seed: 42
+  # Output format: tsv | jsonl  (jsonl = HuggingFace `{"translation": {...}}`)
+  format: tsv
+
+huggingface:
+  # Default repo namespace (will be prefixed by your HF username)
+  default_repo: medical-glossary-weekly
+  default_private: true
+  # Token MUST come from env var HF_TOKEN — never hardcode here
+  token_env: HF_TOKEN
+
+automation:
+  default_channel: "@dr_zaky_ortho"
+  default_limit: 500        # 0 = unlimited
+  output_dir: "~/omni_telegram_output"
+
+ui:
+  port: 7860
+  host: "0.0.0.0"
+  share: false              # set true to expose a public Gradio link
+
+logging:
+  level: INFO                # DEBUG | INFO | WARNING | ERROR
+  file: null                 # path to logfile, null = stderr only
