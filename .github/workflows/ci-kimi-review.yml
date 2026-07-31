@@ -1,0 +1,79 @@
+name: CI — telegram-tools
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'app.py'
+      - 'pyproject.toml'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'app.py'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'pyproject.toml') }}
+
+      - name: Install deps
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-cov pytest-asyncio
+          pip install ruff mypy
+          pip install -e .
+          pip install -r requirements.txt
+
+      - name: Lint
+        run: ruff check src/ --output-format=github
+
+      - name: Type check
+        run: mypy src/ --ignore-missing-imports || true
+
+      - name: Run tests
+        run: pytest tests/ -v --cov=src/telegram_tools --cov-report=xml --cov-report=term
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+      - name: Test CLI help
+        run: tg-tools --help
+
+      - name: Test mock pipeline (no Telegram needed)
+        run: python -m automation.test_mock_pipeline || true
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t telegram-tools:test .
+
+      - name: Test Docker image
+        run: |
+          docker run --rm telegram-tools:test python -c "import telegram_tools; print('✅ Import OK')"
