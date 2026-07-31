@@ -65,6 +65,17 @@ class FloodWaitRetryableError(TelegramToolsError):
 _loop: asyncio.AbstractEventLoop | None = None
 _loop_thread: threading.Thread | None = None
 _loop_lock = threading.Lock()
+_shutdown_event = threading.Event()
+
+
+def _shutdown_shared_loop() -> None:
+    """Gracefully stop the shared loop (registered via atexit)."""
+    global _loop, _loop_thread
+    _shutdown_event.set()
+    if _loop is not None and not _loop.is_closed():
+        _loop.call_soon_threadsafe(_loop.stop)
+    if _loop_thread is not None and _loop_thread.is_alive():
+        _loop_thread.join(timeout=5.0)
 
 
 def _get_shared_loop() -> asyncio.AbstractEventLoop:
@@ -78,12 +89,23 @@ def _get_shared_loop() -> asyncio.AbstractEventLoop:
         if _loop is None or _loop.is_closed():
             _loop = asyncio.new_event_loop()
 
+            # Register clean shutdown at interpreter exit
+            import atexit
+            atexit.register(_shutdown_shared_loop)
+
             def _runner() -> None:
                 asyncio.set_event_loop(_loop)
-                _loop.run_forever()
+                while not _shutdown_event.is_set():
+                    _loop.run_forever()
+                # Drain any pending coroutines before exiting
+                pending = asyncio.all_tasks(_loop)
+                if pending:
+                    _loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
 
             _loop_thread = threading.Thread(
-                target=_runner, name="telegram-tools-loop", daemon=True
+                target=_runner, name="telegram-tools-loop", daemon=False
             )
             _loop_thread.start()
 
@@ -237,7 +259,10 @@ class TelegramClientMixin:
 
         session = self.client.session
         auth_key = getattr(session, "auth_key", None)
-        if auth_key is None:
+        # Telethon >=2.0 wraps auth_key in a Key object
+        if hasattr(auth_key, "key"):
+            auth_key = auth_key.key
+        if auth_key is None or not isinstance(auth_key, bytes):
             raise RuntimeError(
                 "Cannot export session — auth_key is missing. "
                 "Complete authentication first."
