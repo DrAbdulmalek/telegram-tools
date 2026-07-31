@@ -8,7 +8,7 @@ Combines three previously-separate utilities into one cohesive package:
   - Preprocess: Arabic normalization, dedup, quality filtering, segmentation
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __author__ = "Abdulmalek Husseini"
 
 from .core.base import (
@@ -18,7 +18,13 @@ from .core.base import (
     TelegramClientMixin,
     TelegramToolsError,
 )
-from .core.copier import CopierConfig, CopierResult, TelegramCopier
+from .core.copier import (
+    CopierConfig,
+    CopierResult,
+    CopyPreview,
+    TelegramCopier,
+    compute_message_hash,
+)
 from .core.extractor import CorpusSaver, TelegramExtractor
 from .core.forwarder import (
     ForwardConfig,
@@ -50,7 +56,9 @@ __all__ = [
     # copier
     "TelegramCopier",
     "CopierConfig",
+    "CopyPreview",
     "CopierResult",
+    "compute_message_hash",
     # forwarder
     "TelegramForwarder",
     "ForwardConfig",

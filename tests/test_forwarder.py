@@ -13,7 +13,6 @@ from telegram_tools.core.forwarder import (
 )
 from telegram_tools.core.rate_limiter import RateLimiter
 
-
 # ─── ForwardConfig ─────────────────────────────────────────
 
 

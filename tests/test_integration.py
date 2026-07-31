@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from telegram_tools.cli import build_parser
-from telegram_tools.utils.auth import Credentials, get_credentials_from_env, prompt_credentials
+from telegram_tools.utils.auth import Credentials, get_credentials_from_env
 
 
 class TestCLIParser:

@@ -1,6 +1,6 @@
 """Tests for the media helpers in telegram_tools.utils.media."""
 
-from telegram_tools.utils.media import format_size, describe_media
+from telegram_tools.utils.media import describe_media, format_size
 
 
 class TestFormatSize:

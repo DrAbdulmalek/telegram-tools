@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "telegram-tools"
-version = "1.1.0"
-description = "Unified Telegram toolkit: copy, forward, extract, preprocess, and align bilingual medical corpora for ML training"
+version = "1.2.0"
+description = "Unified Telegram toolkit: copy (with preview + dedup), forward, extract, preprocess, and align bilingual medical corpora for ML training"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Abdulmalek Husseini" }]

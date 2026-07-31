@@ -12,10 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from telegram_tools.pipeline.bilingual_extractor import BilingualExtractor
 from telegram_tools.pipeline.aligner import BilingualAligner
+from telegram_tools.pipeline.bilingual_extractor import BilingualExtractor
 from telegram_tools.pipeline.splitter import DatasetSplitter
-
 
 # ──────────────────────────────────────────────────────────────
 # Fixtures

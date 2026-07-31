@@ -24,7 +24,11 @@ import threading
 
 import gradio as gr
 
-from telegram_tools.core.copier import CopierConfig, TelegramCopier
+from telegram_tools.core.copier import (
+    CopierConfig,
+    CopyPreview,
+    TelegramCopier,
+)
 from telegram_tools.core.extractor import TelegramExtractor
 from telegram_tools.core.forwarder import (
     ForwardConfig,
@@ -279,15 +283,160 @@ def do_channel_info(channel_id):
 
 
 # ═══════════════════════════════════════════════════════════
-#  Tab 3: Copy (fast bulk)
+#  Tab 3: Copy (fast bulk) — v1.2 with preview + dedup + select
 # ═══════════════════════════════════════════════════════════
+
+# v1.2: cache the latest preview list so the copy handler can resolve
+# checkbox selections by message_id even after the user clicks "select all".
+_last_copy_preview: list[CopyPreview] = []
+
+
+def do_copy_preview(
+    source, dest, source_manual, dest_manual,
+    limit, files_only, text_only, newest_first, scan_dest,
+):
+    """Fetch a preview of source messages and (optionally) scan destination
+    for duplicates so each row is tagged with dup_status.
+
+    Returns a Gradio DataFrame + status HTML + the (hidden) selected_ids state.
+    """
+    global _last_copy_preview
+
+    if not _copier or not _run(_copier.is_authorized()):
+        return (
+            None,
+            _status_html("❌ غير متصل — سجل دخول أولاً", "error"),
+            gr.update(),
+        )
+
+    source = (source_manual or "").strip() or source
+    dest = (dest_manual or "").strip() or dest
+    if not source or not dest:
+        return (
+            None,
+            _status_html("❌ اختر المصدر والوجهة", "error"),
+            gr.update(),
+        )
+    if source == dest:
+        return (
+            None,
+            _status_html("❌ المصدر والوجهة لا يمكن أن يكونا نفسهما", "error"),
+            gr.update(),
+        )
+
+    # Optional: scan destination first so dup_status is populated
+    scan_msg = ""
+    if scan_dest:
+        try:
+            scan_result = _run(_copier.scan_dest_duplicates(dest, limit=0))
+            scan_msg = (
+                f" | 🎯 فُحصت الوجهة: {scan_result['scanned']} رسالة، "
+                f"{scan_result['unique_hashes']} بصمة فريدة"
+            )
+        except Exception as e:
+            return (
+                None,
+                _status_html(f"❌ فشل فحص الوجهة: {e}", "error"),
+                gr.update(),
+            )
+    else:
+        # Clear any previous dest cache so dup_status shows 'unknown'
+        _copier.clear_dest_cache()
+
+    config = CopierConfig(
+        source_channel=source,
+        dest_channel=dest,
+        limit=int(limit),
+        copy_text=not files_only,
+        copy_media=not text_only,
+        files_only=files_only,
+        reverse_order=not newest_first,
+    )
+
+    try:
+        previews = _run(_copier.preview_messages(config, limit=int(limit) or 200))
+    except Exception as e:
+        return (
+            None,
+            _status_html(f"❌ فشل جلب المعاينة: {e}", "error"),
+            gr.update(),
+        )
+
+    _last_copy_preview = previews
+
+    # Build a DataFrame-friendly list of dicts
+    rows = [
+        {
+            "✅ تحديد": True,
+            "ID": p.message_id,
+            "التاريخ": p.date[:19] if p.date else "",
+            "النص": p.text_snippet,
+            "النوع": p.media_type,
+            "الحجم (MB)": p.media_size_mb,
+            "الحالة": (
+                "🔁 مكرر" if p.dup_status == "duplicate"
+                else ("✨ جديد" if p.dup_status == "unique" else "؟")
+            ),
+        }
+        for p in previews
+    ]
+
+    dup_count = sum(1 for p in previews if p.dup_status == "duplicate")
+    new_count = sum(1 for p in previews if p.dup_status == "unique")
+    unk_count = sum(1 for p in previews if p.dup_status == "unknown")
+
+    status = _status_html(
+        f"✅ تم جلب {len(previews)} رسالة للمعاينة{scan_msg}<br>"
+        f"<b>🔁 مكرر: {dup_count}</b> | ✨ جديد: {new_count}"
+        + (f" | ؟ غير مفحوص: {unk_count}" if unk_count else ""),
+        "success",
+    )
+
+    import pandas as pd
+    df = pd.DataFrame(rows, columns=[
+        "✅ تحديد", "ID", "التاريخ", "النص", "النوع", "الحجم (MB)", "الحالة",
+    ])
+    return df, status, gr.update()
+
+
+def do_copy_select_all(df, select_value):
+    """Toggle all checkboxes in the preview DataFrame.
+
+    ``select_value`` is True for "select all" and False for "deselect all".
+    Returns the updated DataFrame.
+    """
+    import pandas as pd
+    if df is None or not isinstance(df, pd.DataFrame) or len(df) == 0:
+        return df
+    df = df.copy()
+    df["✅ تحديد"] = bool(select_value)
+    return df
+
+
+def do_copy_select_only_new(df):
+    """Select only rows whose status is 'new' (✨ جديد).
+    Useful for skipping all duplicates in one click.
+    """
+    import pandas as pd
+    if df is None or not isinstance(df, pd.DataFrame) or len(df) == 0:
+        return df
+    df = df.copy()
+    df["✅ تحديد"] = df["الحالة"].astype(str).str.contains("جديد", na=False)
+    return df
 
 
 def do_copy(
     source, dest, source_manual, dest_manual,
     limit, delay, files_only, text_only, newest_first,
+    skip_duplicates, preview_df,
 ):
-    """Generator that yields progress updates."""
+    """Generator that yields progress updates.
+
+    v1.2: if ``preview_df`` is provided and contains a '✅ تحديد' column,
+    only the rows where that column is True will be copied (selected_ids).
+    If ``skip_duplicates`` is True, also skip any whose hash is in the
+    destination cache.
+    """
     if not _copier or not _run(_copier.is_authorized()):
         yield _status_html("❌ غير متصل — سجل دخول أولاً", "error"), 0, "{}"
         return
@@ -301,6 +450,26 @@ def do_copy(
         yield _status_html("❌ المصدر والوجهة لا يمكن أن يكونا نفسهما", "error"), 0, "{}"
         return
 
+    # Resolve selected_ids from the preview DataFrame
+    selected_ids: list[int] | None = None
+    if preview_df is not None:
+        try:
+            import pandas as pd
+            if isinstance(preview_df, pd.DataFrame) and len(preview_df) > 0:
+                mask = preview_df["✅ تحديد"].astype(bool)
+                selected_ids = [
+                    int(x) for x in preview_df.loc[mask, "ID"].tolist()
+                ]
+                if not selected_ids:
+                    yield _status_html(
+                        "⚠️ لا توجد رسائل محددة — حدد صفوفاً أو استخدم 'اختيار الكل'",
+                        "warn",
+                    ), 0, "{}"
+                    return
+        except Exception as e:
+            logger.warning(f"Could not parse preview_df: {e}")
+            selected_ids = None
+
     config = CopierConfig(
         source_channel=source,
         dest_channel=dest,
@@ -310,9 +479,16 @@ def do_copy(
         copy_media=not text_only,
         files_only=files_only,
         reverse_order=not newest_first,
+        skip_duplicates=bool(skip_duplicates),
+        selected_ids=selected_ids,
     )
 
-    yield _status_html("⏳ جارٍ النسخ…", "info"), 0, "{}"
+    total_target = len(selected_ids) if selected_ids else int(limit or 0)
+    yield _status_html(
+        f"⏳ جارٍ النسخ… ({total_target or 'الكل'} رسالة"
+        + ("، تخطي المكرر" if skip_duplicates else "") + ")",
+        "info",
+    ), 0, "{}"
 
     import queue as _q
     pq: _q.Queue = _q.Queue()
@@ -340,9 +516,13 @@ def do_copy(
 
         if isinstance(item, tuple) and item[0] == "DONE":
             r = item[1]
+            dup_msg = (
+                f" | 🔁 مكرر متخطى: {r.duplicates_skipped}"
+                if r.duplicates_skipped else ""
+            )
             status = _status_html(
                 f"✅ اكتمل — نجح: {r.copied} | فشل: {r.failed} | "
-                f"تخطى: {r.skipped} | الوقت: {r.elapsed}",
+                f"تخطى: {r.skipped}{dup_msg} | الوقت: {r.elapsed}",
                 "success",
             )
             yield status, 100, str(r.to_dict())
@@ -352,8 +532,13 @@ def do_copy(
             return
         elif isinstance(item, tuple) and len(item) == 2:
             r, pct = item
+            dup_msg = (
+                f" | 🔁 مكرر: {r.duplicates_skipped}"
+                if r.duplicates_skipped else ""
+            )
             status = _status_html(
-                f"⏳ نسخ — نجح: {r.copied} | فشل: {r.failed} | تخطى: {r.skipped}",
+                f"⏳ نسخ — نجح: {r.copied} | فشل: {r.failed} | "
+                f"تخطى: {r.skipped}{dup_msg}",
                 "info",
             )
             yield status, int(pct), str(r.to_dict())
@@ -615,21 +800,45 @@ def build_app():
             with gr.Tab("⚡ نسخ سريع"):
                 gr.HTML("""<div class="info-box">
                     نسخ سريع عبر إعادة إرسال الوسائط مباشرة — لا يعمل على القنوات المحمية.
-                    استخدم هذا للقنوات العامة أو حيث لديك صلاحية النشر.
+                    <b>الجديد v1.2:</b> معاينة قبل النسخ · اختيار الرسائل · تخطي المكرر.
                 </div>""")
 
                 with gr.Row():
-                    with gr.Column():
-                        limit_c = gr.Slider(0, 10000, value=0, step=1,
+                    with gr.Column(scale=1):
+                        limit_c = gr.Slider(0, 10000, value=100, step=1,
                                             label="عدد الرسائل (0 = الكل)")
                         delay_c = gr.Slider(1.0, 30.0, value=3.0, step=0.5,
                                             label="التأخير (ثانية)")
-
-                    with gr.Column():
                         files_only_c = gr.Checkbox(label="🖼️ ملفات فقط", value=False)
                         text_only_c = gr.Checkbox(label="📝 نص فقط", value=False)
                         newest_first_c = gr.Checkbox(label="الأحدث أولاً", value=False)
+                        scan_dest_c = gr.Checkbox(
+                            label="🎯 فحص الوجهة لكشف المكرر قبل المعاينة",
+                            value=True,
+                        )
+                        skip_dup_c = gr.Checkbox(
+                            label="⏭️ تخطي المكرر أثناء النسخ",
+                            value=True,
+                        )
 
+                    with gr.Column(scale=2):
+                        gr.HTML('<div class="info-box"><b>1) المعاينة</b> — حدّد القناتين في تبويب «القنوات» أولاً</div>')
+                        preview_copy_btn = gr.Button("🔍 معاينة الرسائل", variant="secondary")
+                        copy_preview_df = gr.Dataframe(
+                            headers=["✅ تحديد", "ID", "التاريخ", "النص", "النوع", "الحجم (MB)", "الحالة"],
+                            datatype=["bool", "number", "str", "str", "str", "number", "str"],
+                            row_count=(0, "dynamic"),
+                            col_count=(7, "fixed"),
+                            interactive=True,
+                            wrap=True,
+                            label="المعاينة — عدّل عمود «✅ تحديد» لاختيار ما يُنسخ",
+                        )
+                        with gr.Row():
+                            select_all_copy_btn = gr.Button("☑️ اختيار الكل", variant="secondary", scale=1)
+                            deselect_all_copy_btn = gr.Button("☐ إلغاء الكل", variant="secondary", scale=1)
+                            select_new_only_btn = gr.Button("✨ الجديد فقط", variant="secondary", scale=1)
+
+                gr.HTML('<div class="info-box"><b>2) النسخ</b> — سيتم نسخ الرسائل المحددة فقط</div>')
                 with gr.Row():
                     start_copy_btn = gr.Button("▶️ بدء النسخ", variant="primary", scale=3)
                     cancel_copy_btn = gr.Button("⛔ إيقاف", variant="stop", scale=1)
@@ -775,12 +984,36 @@ def build_app():
             do_channel_info, inputs=[dest_list_c], outputs=[dest_info_c]
         )
 
-        # Copy
+        # Copy — v1.2: preview → select → copy
+        preview_copy_btn.click(
+            do_copy_preview,
+            inputs=[
+                source_list_c, dest_list_c, source_manual_c, dest_manual_c,
+                limit_c, files_only_c, text_only_c, newest_first_c, scan_dest_c,
+            ],
+            outputs=[copy_preview_df, copy_status],
+        )
+        select_all_copy_btn.click(
+            do_copy_select_all,
+            inputs=[copy_preview_df, gr.Checkbox(value=True, visible=False)],
+            outputs=[copy_preview_df],
+        )
+        deselect_all_copy_btn.click(
+            do_copy_select_all,
+            inputs=[copy_preview_df, gr.Checkbox(value=False, visible=False)],
+            outputs=[copy_preview_df],
+        )
+        select_new_only_btn.click(
+            do_copy_select_only_new,
+            inputs=[copy_preview_df],
+            outputs=[copy_preview_df],
+        )
         start_copy_btn.click(
             do_copy,
             inputs=[
                 source_list_c, dest_list_c, source_manual_c, dest_manual_c,
                 limit_c, delay_c, files_only_c, text_only_c, newest_first_c,
+                skip_dup_c, copy_preview_df,
             ],
             outputs=[copy_status, copy_progress, copy_stats],
         )

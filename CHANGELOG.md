@@ -5,6 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-07-31
+
+### Added — Copy tab: preview + dedup + selective copy
+
+The **⚡ نسخ سريع** (Copy) tab now follows a 3-step workflow instead of firing
+blindly. The previous behavior — clicking "start copy" sent every message
+matching the filters — caused duplicates to pile up in destination channels
+when the source channel was re-run. v1.2 fixes this and adds user control.
+
+- **`TelegramCopier.preview_messages(config, limit)`** — new method that fetches
+  a list of `CopyPreview` rows (id, date, snippet, media_type, media_size,
+  content_hash, dup_status) **without sending anything**. Capped at 500 rows
+  to keep the UI responsive.
+- **`TelegramCopier.scan_dest_duplicates(dest, limit)`** — walks the destination
+  channel once and caches a set of content hashes. Subsequent `preview_messages()`
+  calls auto-tag each row with `dup_status='duplicate'` or `'unique'`.
+- **`compute_message_hash(message)`** — deterministic SHA-256 (truncated to 16
+  hex chars) of message content. For text-only messages: hash of normalized
+  text (whitespace collapsed, lowercased). For media: hash of (file_size,
+  file_name, mime_type, normalized caption). Two messages with identical
+  content produce identical hashes regardless of where they live.
+- **`TelegramCopier.clear_dest_cache()`** — forget all destination hashes so
+  the next preview starts fresh.
+- **`CopierConfig.skip_duplicates`** — new bool field. When True, `copy()`
+  skips any message whose hash is already in `_dest_hashes`. New hashes
+  are added to the cache as messages are sent, so duplicates within the
+  same batch are also skipped.
+- **`CopierConfig.selected_ids`** — new optional `list[int]`. When set, only
+  those source message IDs are copied. This is how the UI honors the user's
+  per-row checkbox selections.
+- **`CopierResult.duplicates_skipped`** — new counter exposed in
+  `to_dict()` and the UI status line.
+- **`CopyPreview`** dataclass — new public type with `message_id`, `date`,
+  `text_snippet`, `has_media`, `media_type`, `media_size_mb`, `media_name`,
+  `content_hash`, `dup_status`, `selected`, and `to_dict()`.
+
+### Added — Copy UI redesign (`app.py`)
+
+- **Step 1 — Preview button**: "🔍 معاينة الرسائل" fetches source messages and
+  populates an interactive DataFrame. Each row shows: checkbox, ID, date,
+  text snippet, media type, size (MB), and duplicate status (🔁 مكرر / ✨ جديد / ؟).
+  A status line above summarizes counts.
+- **Step 2 — Selection controls**: three buttons above the DataFrame:
+  - **☑️ اختيار الكل** — select all rows
+  - **☐ إلغاء الكل** — deselect all rows
+  - **✨ الجديد فقط** — select only rows marked unique (skips all duplicates)
+- **Optional checkbox "🎯 فحص الوجهة لكشف المكرر قبل المعاينة"** — when checked,
+  the preview button first scans the destination channel for existing content
+  hashes. Each source message is then auto-tagged as duplicate or unique.
+- **Optional checkbox "⏭️ تخطي المكرر أثناء النسخ"** — when checked, the copy
+  loop skips any message whose hash is already in the destination cache
+  (including hashes added during the same batch).
+- **Step 3 — Copy button**: only the rows where the checkbox column is True
+  are sent. The status line shows live progress including duplicates skipped.
+
+### Tests
+- `tests/test_copier.py` expanded from 6 → 23 tests covering: new config
+  fields, new result fields, `_normalize_text`, `compute_message_hash`
+  (deterministic, stable across whitespace/case differences, hex format),
+  and `CopyPreview` defaults + `to_dict()`.
+
+### CI
+- ruff/flake8/bandit/pytest all pass (135 tests).
+
+---
+
 ## [1.1.0] — 2026-07-31
 
 ### Added — Bilingual Medical Pipeline

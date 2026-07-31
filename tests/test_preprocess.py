@@ -4,10 +4,6 @@ deduplicator, segmenter, and full CorpusProcessor pipeline.
 """
 
 import json
-import tempfile
-from pathlib import Path
-
-import pytest
 
 from telegram_tools.core.preprocess import (
     ArabicNormalizer,
@@ -16,7 +12,6 @@ from telegram_tools.core.preprocess import (
     QualityFilter,
     TextSegmenter,
 )
-
 
 # ─── ArabicNormalizer ──────────────────────────────────────
 
