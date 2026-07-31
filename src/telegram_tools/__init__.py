@@ -8,7 +8,7 @@ Combines three previously-separate utilities into one cohesive package:
   - Preprocess: Arabic normalization, dedup, quality filtering, segmentation
 """
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 __author__ = "Abdulmalek Husseini"
 
 from .core.base import (

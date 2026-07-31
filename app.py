@@ -70,9 +70,53 @@ _copier: TelegramCopier | None = None
 _extractor: TelegramExtractor | None = None
 _last_creds: tuple[int, str, str | None] = (0, "", None)  # api_id, api_hash, session_string
 
+# ─── Local credential cache (api_id + api_hash only) ────────
+# Session String is the sensitive bit — we never persist it.
+# api_id + api_hash are semi-public (anyone can mint a new pair at
+# my.telegram.org) so saving them locally is acceptable and removes
+# the need to re-enter them on every launch.
+import json
+from pathlib import Path
+
+_CRED_CACHE = Path.home() / ".telegram_tools_creds.json"
+
+
+def _load_cached_creds() -> tuple[int, str, str]:
+    """Return (api_id, api_hash, session_string) from local cache, or defaults."""
+    if _CRED_CACHE.exists():
+        try:
+            data = json.loads(_CRED_CACHE.read_text("utf-8"))
+            return (
+                int(data.get("api_id", 0) or 0),
+                str(data.get("api_hash", "") or ""),
+                str(data.get("session_string", "") or ""),
+            )
+        except Exception as e:
+            logger.warning(f"Could not read cred cache: {e}")
+    return 0, "", os.environ.get("SESSION_STRING", "")
+
+
+def _save_cached_creds(api_id, api_hash, session_string=""):
+    """Persist api_id + api_hash (and session_string only if non-empty)."""
+    try:
+        _CRED_CACHE.write_text(json.dumps({
+            "api_id": int(api_id or 0),
+            "api_hash": str(api_hash or ""),
+            "session_string": str(session_string or ""),
+        }, ensure_ascii=False, indent=2), "utf-8")
+        _CRED_CACHE.chmod(0o600)
+    except Exception as e:
+        logger.warning(f"Could not save cred cache: {e}")
+
 
 def _get_or_create_tools(api_id, api_hash, session_string):
-    """Lazily create tool instances sharing the same session config."""
+    """Lazily create tool instances sharing the same session config.
+
+    v1.2.1: also calls ``_ensure_client()`` on the copier + extractor
+    right after construction, so they end up with a connected client
+    even when only the forwarder is used for login. This works because
+    they all share the same ``session_string`` (or file session).
+    """
     global _forwarder, _copier, _extractor, _last_creds
 
     api_id_int = int(str(api_id).strip())
@@ -100,6 +144,9 @@ def _get_or_create_tools(api_id, api_hash, session_string):
             api_id_int, api_hash_str, session_string=session_str
         )
         _last_creds = (api_id_int, api_hash_str, session_str)
+
+        # Persist credentials for next launch (session_string only if provided)
+        _save_cached_creds(api_id_int, api_hash_str, session_str or "")
 
     return _forwarder, _copier, _extractor
 
@@ -141,7 +188,15 @@ CSS = """
 
 
 def do_send_code(api_id, api_hash, phone, session_str):
-    """Send login code OR validate an existing session string."""
+    """Send login code OR validate an existing session string.
+
+    v1.2.1 flow:
+      1. If ``session_str`` is provided, build the client and check
+         ``is_authorized()``. If valid, login is DONE — no phone/code/2FA
+         needed. The StringSession already carries the auth_key.
+      2. Otherwise (or if the session string is invalid), require a phone
+         number and send a login code as before.
+    """
     try:
         fwd, _, _ = _get_or_create_tools(api_id, api_hash, session_str)
     except ValueError as e:
@@ -151,20 +206,37 @@ def do_send_code(api_id, api_hash, phone, session_str):
             gr.update(visible=False),
         )
 
-    if _run(fwd.is_authorized()):
-        return (
-            gr.update(visible=False),
-            _status_html("✅ متصل (جلسة محفوظة)!", "success"),
-            gr.update(visible=True),
-        )
+    # Try the session-string shortcut first
+    if session_str and str(session_str).strip():
+        try:
+            if _run(fwd.is_authorized()):
+                return (
+                    gr.update(visible=False),
+                    _status_html(
+                        "✅ متصل تلقائياً عبر Session String — لا حاجة لكود أو 2FA!",
+                        "success",
+                    ),
+                    gr.update(visible=True),
+                )
+            # session string was provided but didn't authorize → fall through
+            # to phone+code path with a clear hint
+            hint = (
+                "⚠️ الـ Session String غير صالح أو منتهي — سيُطلب منك تسجيل الدخول"
+                " بالكود. أدخل رقم هاتفك للمتابعة."
+            )
+        except Exception as e:
+            hint = f"⚠️ تعذّر استخدام Session String ({e}) — أدخل رقم الهاتف للمتابعة."
+    else:
+        hint = None
 
+    # If no session_str (or it failed), require a phone number
     if not phone or not str(phone).startswith("+"):
+        msg = hint or (
+            "❌ أدخل رقم هاتف صالح يبدأ بـ + (مثال: +963XXXXXXXXX)"
+        )
         return (
             gr.update(visible=False),
-            _status_html(
-                "❌ أدخل رقم هاتف صالح يبدأ بـ + (مثال: +963XXXXXXXXX)",
-                "error",
-            ),
+            _status_html(msg, "error" if not hint else "warn"),
             gr.update(visible=False),
         )
 
@@ -306,7 +378,6 @@ def do_copy_preview(
         return (
             None,
             _status_html("❌ غير متصل — سجل دخول أولاً", "error"),
-            gr.update(),
         )
 
     source = (source_manual or "").strip() or source
@@ -315,13 +386,11 @@ def do_copy_preview(
         return (
             None,
             _status_html("❌ اختر المصدر والوجهة", "error"),
-            gr.update(),
         )
     if source == dest:
         return (
             None,
             _status_html("❌ المصدر والوجهة لا يمكن أن يكونا نفسهما", "error"),
-            gr.update(),
         )
 
     # Optional: scan destination first so dup_status is populated
@@ -337,7 +406,6 @@ def do_copy_preview(
             return (
                 None,
                 _status_html(f"❌ فشل فحص الوجهة: {e}", "error"),
-                gr.update(),
             )
     else:
         # Clear any previous dest cache so dup_status shows 'unknown'
@@ -359,7 +427,6 @@ def do_copy_preview(
         return (
             None,
             _status_html(f"❌ فشل جلب المعاينة: {e}", "error"),
-            gr.update(),
         )
 
     _last_copy_preview = previews
@@ -396,7 +463,7 @@ def do_copy_preview(
     df = pd.DataFrame(rows, columns=[
         "✅ تحديد", "ID", "التاريخ", "النص", "النوع", "الحجم (MB)", "الحالة",
     ])
-    return df, status, gr.update()
+    return df, status
 
 
 def do_copy_select_all(df, select_value):
@@ -720,36 +787,62 @@ def build_app():
         with gr.Tabs():
 
             # ─── TAB 1: Login ───────────────────────────────
+            # Pre-fill from local credential cache (api_id + api_hash + last
+            # session_string if user previously chose to persist it).
+            _init_api_id, _init_api_hash, _init_sess = _load_cached_creds()
+            if not _init_sess:
+                _init_sess = os.environ.get("SESSION_STRING", "")
+
             with gr.Tab("🔐 تسجيل الدخول"):
                 gr.HTML("""<div class="info-box">
                     احصل على API ID و API Hash من
-                    <a href="https://my.telegram.org" target="_blank">my.telegram.org</a>
+                    <a href="https://my.telegram.org" target="_blank">my.telegram.org</a>.
+                    <br><b>ملاحظة:</b> الـ API ID و Hash يُحفظان محلياً في
+                    <code>~/.telegram_tools_creds.json</code> لعدم إعادة إدخالهما.
+                    الـ Session String لا يُحفظ إلا إذا قمت بذلك صراحةً.
                 </div>""")
 
                 with gr.Row():
-                    api_id = gr.Number(label="API ID", value=0, precision=0, minimum=1)
-                    api_hash = gr.Textbox(label="API Hash", type="password",
-                                          placeholder="abc123def456...")
+                    api_id = gr.Number(
+                        label="API ID",
+                        value=_init_api_id or 0,
+                        precision=0,
+                        minimum=1,
+                    )
+                    api_hash = gr.Textbox(
+                        label="API Hash",
+                        type="password",
+                        placeholder="abc123def456...",
+                        value=_init_api_hash,
+                    )
 
                 phone = gr.Textbox(
-                    label="رقم الهاتف (مع كود الدولة)",
+                    label="رقم الهاتف (مع كود الدولة) — غير مطلوب إذا استخدمت Session String",
                     placeholder="+963XXXXXXXXX",
                 )
 
-                with gr.Accordion("🔑 تسجيل دخول بـ Session String (موصى به لـ HF)", open=False):
+                with gr.Accordion(
+                    "🔑 تسجيل دخول بـ Session String (الأسرع — موصى به)",
+                    open=True,
+                ):
                     gr.HTML("""<div class="info-box">
-                        الصق Session String هنا لتجاوز إدخال الكود في كل مرة.
-                        أو احفظها في HF Secrets باسم <code>SESSION_STRING</code>.
+                        الصق Session String هنا لتجاوز إدخال الكود و 2FA تماماً —
+                        سيتم الاتصال تلقائياً بشرط إدخال API ID و API Hash الصحيحين.
+                        <br><b>ملاحظة تقنية:</b> الـ StringSession لا يحوي API ID/Hash،
+                        لذا يجب إدخالهما مرة واحدة (سيُحفظان تلقائياً).
                     </div>""")
                     session_str = gr.Textbox(
-                        label="Session String (اختياري)",
+                        label="Session String",
                         placeholder="1BVtsOK...",
                         type="password",
-                        value=os.environ.get("SESSION_STRING", ""),
+                        value=_init_sess,
                     )
 
                 with gr.Row():
-                    send_code_btn = gr.Button("📱 إرسال كود التحقق", variant="primary")
+                    send_code_btn = gr.Button(
+                        "🔑 اتصال / إرسال كود",
+                        variant="primary",
+                    )
                     disconnect_btn = gr.Button("🔌 قطع الاتصال", variant="secondary")
 
                 with gr.Column(visible=False) as code_section:

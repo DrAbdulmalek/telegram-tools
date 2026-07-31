@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] — 2026-07-31
+
+### Fixed — Copy tab "❌ غير متصل" despite successful login
+
+**Root cause**: `TelegramClientMixin.is_authorized()` returned `False`
+whenever `self.client` was `None`. Only the forwarder called
+`_ensure_client()` (via `send_code()`); the copier and extractor never
+had their clients built, so their `is_authorized()` always returned
+False — and the Copy tab rejected every request with "غير متصل".
+
+**Fix**: `is_authorized()` now lazily calls `_ensure_client()` when
+`self.client` is None or disconnected. Because all three tools share
+the same `session_string` (or file session), the copier/extractor
+become authorized automatically once the forwarder has logged in.
+
+Also hardened `_ensure_client()` to reconnect an existing-but-disconnected
+client instead of rebuilding it, preserving the auth_key.
+
+### Fixed — Session String login flow
+
+**Symptom**: pasting a valid `Session String` still required entering
+the phone number, login code, and 2FA password.
+
+**Root cause**: `do_send_code()` called `fwd.is_authorized()` *before*
+the client was created, so it always returned False — same bug as above.
+
+**Fix** (combined with the base fix above): when the user provides a
+`Session String`, the app now:
+1. Builds the client with that string
+2. Checks `is_authorized()` — returns True for any valid string
+3. Skips the phone/code/2FA flow entirely
+4. Shows "✅ متصل تلقائياً عبر Session String"
+
+If the string is invalid or expired, a clear warning is shown and the
+user is redirected to the phone+code flow.
+
+### Added — Local credential cache
+
+`api_id` and `api_hash` are now persisted to
+`~/.telegram_tools_creds.json` (chmod 600) after the first successful
+login, so the user does not need to re-enter them on every launch.
+The `Session String` is also persisted only when explicitly provided
+in the UI field — never silently.
+
+**Technical note**: Telethon's `StringSession` only contains DC info +
+auth_key, not `api_id`/`api_hash`. These MUST be entered once — there
+is no way to extract them from the session string itself.
+
+### Fixed — Preview output mismatch
+
+`do_copy_preview` was returning 3 values (`df, status, gr.update()`)
+but the UI wiring only listed 2 outputs (`copy_preview_df, copy_status`).
+Removed the unused third return value to match.
+
+### UI improvements
+- Login tab: Session String section is now **open by default** (was collapsed)
+- API ID/Hash fields are **auto-populated** from the local cache on launch
+- Phone field label updated to clarify it's optional when using Session String
+- Login button renamed to "🔑 اتصال / إرسال كود" to reflect both flows
+- Help text in the Session String section explains the api_id/hash limitation
+
+---
+
 ## [1.2.0] — 2026-07-31
 
 ### Added — Copy tab: preview + dedup + selective copy

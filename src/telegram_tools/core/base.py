@@ -144,9 +144,22 @@ class TelegramClientMixin:
     # ── Client lifecycle ─────────────────────────────────────
 
     async def _ensure_client(self) -> TelegramClient:
-        """Create + connect the TelegramClient if not already done."""
+        """Create + connect the TelegramClient if not already done.
+
+        If a previous client exists but is disconnected, reconnect it
+        instead of creating a new one (preserves the auth_key on disk).
+        """
         if self.client and self.client.is_connected():
             return self.client
+
+        # Re-use the existing (disconnected) client — just reconnect it
+        if self.client and not self.client.is_connected():
+            try:
+                await self.client.connect()
+                return self.client
+            except Exception as e:
+                logger.warning(f"Reconnect failed, will rebuild: {e}")
+                self.client = None
 
         if self.session_string:
             session: Any = StringSession(self.session_string)
@@ -165,7 +178,27 @@ class TelegramClientMixin:
         return self.client
 
     async def is_authorized(self) -> bool:
-        """True if the client is connected and logged in."""
+        """True if the client is connected and logged in.
+
+        v1.2.1 fix: lazily creates + connects the client when called, so
+        that any tool (copier, extractor) sharing the same session_string
+        as the forwarder will automatically be authenticated after a
+        successful forwarder login. Previously, ``is_authorized()``
+        returned False whenever ``self.client`` was None — which was the
+        case for the copier/extractor because only ``send_code()``
+        triggered ``_ensure_client()`` on the forwarder.
+
+        This also fixes the Session-String login flow: when the user
+        pastes a valid StringSession, ``is_authorized()`` now builds the
+        client and checks auth, so the UI can skip the phone/code step
+        entirely.
+        """
+        if not self.client or not self.client.is_connected():
+            try:
+                await self._ensure_client()
+            except Exception as e:
+                logger.debug(f"_ensure_client failed in is_authorized: {e}")
+                return False
         if not self.client:
             return False
         try:
