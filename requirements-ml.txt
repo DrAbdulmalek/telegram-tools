@@ -10,7 +10,7 @@ transformers>=4.40.0
 accelerate>=0.30.0
 
 # Evaluation metrics
-evaluate>=0.4.0
+evaluate>=0.4.6
 sacrebleu>=2.4.0
 
 # Image handling for OCR dataset
