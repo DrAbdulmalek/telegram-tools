@@ -88,7 +88,10 @@ async def amain():
         for m in manifest:
             if not m.get('downloaded'):
                 continue
-            f = os.path.join(BOOKS, m['file'])
+            if m.get('dir'):
+                f = os.path.join(BASE, 'download', m['dir'], m['file'])
+            else:
+                f = os.path.join(BOOKS, m['file'])
             if m['file'] in done or not os.path.exists(f):
                 continue
             if left() < 35:
