@@ -57,6 +57,10 @@ PRIMARY = [
     ('targma_amely', 'Targma_amely', 'all'),
     ('translationpolice', 'translationpolice', 'all'),
     ('maqhaalmutarjim_group', 'maqhaalmutarjim_group', 'all'),
+    # user-added 2026-09-25
+    ('xesarth', 'xesarth', 'all'),
+    ('keymiftah_79', 'keymiftah_79', 'all'),
+    ('tarjamatbybasel', 'tarjamatbybasel', 'all'),
 ]
 PRIMARY_USERNAMES = {u.lower() for _, u, _t in PRIMARY if u != TRANS_MARKED}
 
