@@ -21,10 +21,31 @@ pairs, split them into ML-ready train/val/test sets, and publish to HuggingFace 
 Built on [Telethon](https://github.com/LonamiWebs/Telethon) with a persistent event
 loop, adaptive rate limiting, and a unified Gradio UI.
 
+> ### Product role (read me first)
+>
+> This repo is a **training-data feeder** for
+> [`omni-medical-suite`](https://github.com/DrAbdulmalek/omni-medical-suite),
+> **not** a competing medical NLP product. Its scope is strictly:
+>
+> 1. Extract texts/media from Telegram channels.
+> 2. Align bilingual (EN ↔ AR) pairs and split into train/val/test.
+> 3. Publish the resulting datasets to HuggingFace Hub.
+>
+> The downstream consumer is Omni, which downloads the published
+> datasets and runs the actual medical OCR/NLP training and inference.
+> The optional `training/` scripts in this repo are **convenience
+> helpers** (smoke-test a dataset, fine-tune a baseline model) — they
+> are NOT the canonical training pipeline. The canonical pipeline lives
+> in Omni. Do not duplicate training logic here that already exists in
+> Omni; instead, prefer publishing the dataset and letting Omni train.
+>
+> Reference: `ECOSYSTEM_STATE.md` in `repo-sync-toolkit` for the full
+> canonical relationships diagram.
+
 > Consolidates three previously-separate projects (`telegram-channel-copier`,
 > `telegram-forwarder`, `telegram-pipeline`) into a single cohesive codebase —
 > **v1.1.0** adds a full bilingual pipeline (extractor + splitter + PyTorch Dataset
-> + HuggingFace uploader) and training scripts for medical translation & OCR models.
+> + HuggingFace uploader) and optional training scripts for medical translation & OCR models.
 
 ---
 
@@ -41,6 +62,7 @@ loop, adaptive rate limiting, and a unified Gradio UI.
 | **🔬 PyTorch Dataset** *(new in v1.1)* | `MedicalBilingualDataset` ready for `Seq2SeqTrainer` (NLLB / mBART) | Training medical translation models |
 | **🖼️ OCR Dataset** *(new in v1.1)* | `MedicalOCRDataset` for TrOCR / Donut (image → text) | Training medical OCR on prescription/report images |
 | **🚀 HF Uploader** *(new in v1.1)* | One-click dataset publish to HuggingFace Hub (private/public) | Sharing or backing up datasets |
+| **🧪 Training helpers** *(optional, v1.1)* | `training/train_translation.py` + `training/train_ocr.py` | Convenience smoke-tests / baselines. Canonical training lives in Omni. |
 
 ### Highlights
 
