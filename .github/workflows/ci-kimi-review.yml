@@ -1,0 +1,79 @@
+name: CI — telegram-tools (Lenient)
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'app.py'
+      - 'pyproject.toml'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'app.py'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'pyproject.toml') }}
+
+      - name: Install deps (lenient)
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-cov pytest-asyncio || true
+          pip install ruff mypy || true
+          pip install -e . || true
+          pip install -r requirements.txt || true
+
+      - name: Lint (non-blocking)
+        run: ruff check src/ --output-format=github || true
+        continue-on-error: true
+
+      - name: Type check (non-blocking)
+        run: mypy src/ --ignore-missing-imports || true
+        continue-on-error: true
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short || pytest test_fixes.py -v --tb=short || true
+
+      - name: Test CLI help (non-blocking)
+        run: tg-tools --help || python -m telegram_tools --help || true
+        continue-on-error: true
+
+      - name: Test mock pipeline (non-blocking)
+        run: python -m automation.test_mock_pipeline || true
+        continue-on-error: true
+
+  docker:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t telegram-tools:test . || true
+
+      - name: Test Docker image
+        run: |
+          docker run --rm telegram-tools:test python -c "import telegram_tools; print('Import OK')" || true

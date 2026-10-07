@@ -544,7 +544,7 @@ class TelegramForwarder(TelegramClientMixin):
                             dest,
                             str(file_path),
                             caption=caption,
-                            parse_mode="html",
+                            parse_mode=None,
                             force_document=False,
                         ),
                         timeout=180,
@@ -552,13 +552,13 @@ class TelegramForwarder(TelegramClientMixin):
                 else:
                     if caption:
                         await self.client.send_message(
-                            dest, caption, parse_mode="html"
+                            dest, caption, parse_mode=None
                         )
             finally:
                 shutil.rmtree(str(msg_tmp), ignore_errors=True)
         elif message.text:
             await self.client.send_message(
-                dest, message.text, parse_mode="html"
+                dest, message.text, parse_mode=None
             )
         # Empty messages (no text, no media) — silently skip
 
