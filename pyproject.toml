@@ -41,7 +41,7 @@ dev = [
     "ruff>=0.6.0",
     "flake8>=7.1.0",
     "bandit>=1.7.0",
-    "pre-commit>=3.7.0",
+    "pre-commit>=4.6.2",
 ]
 ml = [
     "torch>=2.2.0",
