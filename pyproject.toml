@@ -45,7 +45,7 @@ dev = [
 ]
 ml = [
     "torch>=2.2.0",
-    "transformers>=4.40.0",
+    "transformers>=5.20.2",
     "accelerate>=0.30.0",
     "evaluate>=0.4.6",
     "sacrebleu>=2.4.0",
