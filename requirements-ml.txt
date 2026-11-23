@@ -5,7 +5,7 @@
 huggingface_hub>=0.20.0
 
 # PyTorch training (translation + OCR)
-torch>=2.2.0
+torch>=2.14.1
 transformers>=4.40.0
 accelerate>=0.30.0
 
